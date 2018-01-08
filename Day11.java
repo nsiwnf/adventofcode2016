@@ -176,47 +176,7 @@ public class Day11 {
     }
   }
 
-  /**
-   * The experimental RTGs have poor radiation containment, so they're
-   * dangerously radioactive. The chips are prototypes and don't have normal
-   * radiation shielding, but they do have the ability to generate an
-   * electromagnetic radiation shield when powered. Unfortunately, they can only
-   * be powered by their corresponding RTG. An RTG powering a microchip is still
-   * dangerous to other microchips.
-   * 
-   * In other words, if a chip is ever left in the same area as another RTG, and
-   * it's not connected to its own RTG, the chip will be fried. Therefore, it is
-   * assumed that you will follow procedure and keep chips connected to their
-   * corresponding RTG when they're in the same room, and away from other RTGs
-   * otherwise.
-   * 
-   * These microchips sound very interesting and useful to your current
-   * activities, and you'd like to try to retrieve them. The fourth floor of the
-   * facility has an assembling machine which can make a self-contained,
-   * shielded computer for you to take with you - that is, if you can bring it
-   * all of the RTGs and microchips.
-   * 
-   * Within the radiation-shielded part of the facility (in which it's safe to
-   * have these pre-assembly RTGs), there is an elevator that can move between
-   * the four floors. Its capacity rating means it can carry at most yourself
-   * and two RTGs or microchips in any combination. (They're rigged to some
-   * heavy diagnostic equipment - the assembling machine will detach it for
-   * you.) As a security measure, the elevator will only function if it contains
-   * at least one RTG or microchip. The elevator always stops on each floor to
-   * recharge, and this takes long enough that the items within it and the items
-   * on that floor can irradiate each other. (You can prevent this if a
-   * Microchip and its Generator end up on the same floor in this way, as they
-   * can be connected while the elevator is recharging.)
-   * 
-   * You make some notes of the locations of each component of interest (your
-   * puzzle input). Before you don a hazmat suit and start moving things around,
-   * you'd like to have an idea of what you need to do.
-   * 
-   * When you enter the containment area, you and the elevator will start on the
-   * first floor.
-   * 
-   * @return
-   */
+ 
   private static int part1() {
     int minSteps = Integer.MAX_VALUE;
     final byte all = 0b11111;
