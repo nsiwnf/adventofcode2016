@@ -34,6 +34,17 @@ public class Day11 {
       if (newLevel > 3 || newLevel < 0) {
         return null;
       }
+      
+      // nothing below, no point in taking it further down
+      if(newLevel < level) {
+        boolean nothing = true;
+        for(int i = 0; i < level; i++) {
+          nothing &= generators[i] == 0 && microchips[i] == 0;
+        }
+        if(nothing) {
+          return null;
+        }
+      }
 
       byte newGen = (byte) (generators[newLevel] | rtg1 | rtg2);
       byte newMic = (byte) (microchips[newLevel] | chip1 | chip2);
