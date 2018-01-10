@@ -1,193 +1,168 @@
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
-public class Day11 {
+public class Day112 {
 
-  static final byte ZERO = (byte) 0;
+  private static final byte ZERO = (byte) 0;
+
+  private static final byte FLOOR = (byte) 8;
+
+  private static final byte FOURTH_FLOOR = FLOOR * 3;
 
   static class Point {
-
     int level;
 
-    byte[] generators;
+    int generators;
 
-    byte[] microchips;
+    int microchips;
+
+    byte n;
 
     int steps;
 
-//    List<String> prev = new ArrayList<>();
+    // List<Long> prev = new ArrayList<>();
 
-    Point(int level, byte[] generators, byte[] microchips, int steps) {
+    Point() {
+    }
+
+    Point(int level, int generators, int microchips, byte n, int steps) {
       this.level = level;
       this.generators = generators;
       this.microchips = microchips;
+      this.n = n;
       this.steps = steps;
     }
 
-    Point getNext(int newLevel, byte chip1, byte chip2, byte rtg1, byte rtg2) {
-      if (newLevel > 3 || newLevel < 0) {
-        return null;
-      }
-      
-      // nothing below, no point in taking it further down
-      if(newLevel < level) {
-        boolean nothing = true;
-        for(int i = 0; i < level; i++) {
-          nothing &= generators[i] == 0 && microchips[i] == 0;
-        }
-        if(nothing) {
-          return null;
-        }
+    boolean getNext(Point next, int newLevel, byte chips, byte rtgs) {
+      // valid floor, chips and generators
+      if (newLevel > FOURTH_FLOOR || newLevel < 0
+          || (microchips >> level & chips) != chips || (generators >> level & rtgs) != rtgs
+          // nothing below, no point in taking it further down
+          || newLevel < level && ((generators >> level) | (microchips >> level)) == 0) {
+        return false;
       }
 
-      byte newGen = (byte) (generators[newLevel] | rtg1 | rtg2);
-      byte newMic = (byte) (microchips[newLevel] | chip1 | chip2);
-      if (newGen != 0 && (newGen & newMic) == 0) {
+      byte genNL = (byte) (generators >> newLevel & n | rtgs);
+      byte micNL = (byte) (microchips >> newLevel & n | chips);
+      if (genNL != 0 && (genNL & micNL) == 0) {
         // none of the RTGs have corresponding microchips, you are dead
-        return null;
+        return false;
       }
 
-      if (newMic != 0) {
-        // there are microchips on this level
-        if (newGen != 0) {
-          // there are generators on this level
-          if ((newMic & newGen) != newMic) {
-            // there are microchips exposed to incompatible RTGs and are fried
-            return null;
-          }
-        }
+      if (micNL != 0 && genNL != 0 && (micNL & genNL) != micNL) {
+        // there are microchips exposed to incompatible RTGs and are fried
+        return false;
       }
 
-      byte microchip = (byte) (microchips[level] & ~chip1 & ~chip2);
-      byte generator = (byte) (generators[level] & ~rtg1 & ~rtg2);
-      if (microchip != 0) {
-        // there are microchips on this level
-        if (generator != 0) {
-          // there are generators on this level
-          if ((microchip & generator) != microchip) {
-            // there are microchips exposed to incompatible RTGs
-            return null;
-          }
-        }
+      byte genCL = (byte) (generators >> level & n & ~rtgs);
+      byte micCL = (byte) (microchips >> level & n & ~chips);
+      if (micCL != 0 && genCL != 0 && (micCL & genCL) != micCL) {
+        // there are microchips exposed to incompatible RTGs
+        return false;
       }
 
-      byte[] newGenerators = Arrays.copyOf(generators, generators.length);
-      newGenerators[newLevel] = newGen;
-      newGenerators[level] = generator;
-      byte[] newMicrochips = Arrays.copyOf(microchips, microchips.length);
-      newMicrochips[newLevel] = newMic;
-      newMicrochips[level] = microchip;
+      int floorMask = ~(n << level | n << newLevel);
+      int newGenerators = genNL << newLevel | genCL << level | floorMask & generators;
+      int newMicrochips = micNL << newLevel | micCL << level | floorMask & microchips;
 
-      Point next = new Point(newLevel, newGenerators, newMicrochips, steps + 1);
-//      next.prev.addAll(prev);
-//      next.prev.add(prev.toString());
+      next.level = newLevel;
+      next.generators = newGenerators;
+      next.microchips = newMicrochips;
+      next.n = n;
+      next.steps = steps + 1;
+      // next.prev.clear();
+      // next.prev.addAll(prev);
+      // next.prev.add((long) generators << 32 | microchips);
 
-      return next;
+      return true;
     }
 
     @Override
     public String toString() {
-      String genbin = Integer.toBinaryString(generators[0]) + ", " + Integer.toBinaryString(generators[1]) + ", "
-          + Integer.toBinaryString(generators[2]) + ", " + Integer.toBinaryString(generators[3]);
-      String micbin = Integer.toBinaryString(microchips[0]) + ", " + Integer.toBinaryString(microchips[1]) + ", "
-          + Integer.toBinaryString(microchips[2]) + ", " + Integer.toBinaryString(microchips[3]);
-      return level + "[" + genbin + "][" + micbin + "]";
+      String genbin = Integer.toBinaryString(generators);
+      String micbin = Integer.toBinaryString(microchips);
+      return level / FLOOR + "[" + genbin + "][" + micbin + "]";
+    }
+
+    @Override
+    public int hashCode() {
+      int result = 1;
+      result = 31 * result + level / FLOOR;
+      result = 31 * result + generators;
+      result = 31 * result + microchips;
+      return result;
     }
   }
 
-  private static int part1(byte[] elements, String[] elementStrings, byte[] generators, byte[] microchips) {
-    byte all = 0;
+  private static int part1(byte[] elements, String[] elementStrings, int generators, int microchips) {
+    int all = 0;
     for (byte e : elements) {
       all |= e;
     }
-    Queue<Point> points = new ArrayBlockingQueue<Point>(5000000);
-    Point start = new Point(0, generators, microchips, 0);
+    Queue<Point> points = new ArrayBlockingQueue<>(500000);
+    Point start = new Point(0, generators, microchips, (byte) all, 0);
     points.add(start);
-    Set<String> visited = new HashSet<>();
-    visited.add(start.toString());
+
+    Set<Integer> visited = new HashSet<>();
+    visited.add(start.hashCode());
+
+    all = all << FOURTH_FLOOR;
 
     while (!points.isEmpty()) {
       Point p = points.poll();
 
-//      System.out.println(printPoint(elements, elementStrings, p));
-      if (p.generators[3] == all && p.microchips[3] == all) {
+      // System.out.println(printPoint(elements, elementStrings, p));
+      if (p.generators == all && p.microchips == all) {
+        // printSteps(elements, elementStrings, p.prev);
         return p.steps;
       }
 
       for (int i = 0; i < elements.length; i++) {
-        if ((p.microchips[p.level] & elements[i]) != 0) {
-          // take just this chip
-          Point next = p.getNext(p.level - 1, elements[i], ZERO, ZERO, ZERO);
-          if (next != null && visited.add(next.toString())) {
-            points.add(next);
-          }
-          next = p.getNext(p.level + 1, elements[i], ZERO, ZERO, ZERO);
-          if (next != null) {
-            points.add(next);
-          }
+        Point next = new Point();
+        // take just this chip
+        next = addNext(p, next, elements[i], ZERO, visited, points);
 
+        // take this chip and its gen
+        next = addNext(p, next, elements[i], elements[i], visited, points);
+
+        // take just this generator
+        next = addNext(p, next, ZERO, elements[i], visited, points);
+
+        for (int j = i + 1; j < elements.length; j++) {
           // take this chip and another chip
-          for (int j = i + 1; j < elements.length; j++) {
-            if ((p.microchips[p.level] & elements[j]) != 0) {
-              next = p.getNext(p.level - 1, elements[i], elements[j], ZERO, ZERO);
-              if (next != null && visited.add(next.toString())) {
-                points.add(next);
-              }
-              next = p.getNext(p.level + 1, elements[i], elements[j], ZERO, ZERO);
-              if (next != null && visited.add(next.toString())) {
-                points.add(next);
-              }
-            }
-          }
+          next = addNext(p, next, (byte) (elements[i] | elements[j]), ZERO, visited, points);
 
-          // take this chip and its gen
-          if ((p.generators[p.level] & elements[i]) != 0) {
-            next = p.getNext(p.level - 1, elements[i], ZERO, elements[i], ZERO);
-            if (next != null && visited.add(next.toString())) {
-              points.add(next);
-            }
-            next = p.getNext(p.level + 1, elements[i], ZERO, elements[i], ZERO);
-            if (next != null && visited.add(next.toString())) {
-              points.add(next);
-            }
-          }
-        }
+          // take this gen and another gen
+          next = addNext(p, next, ZERO, (byte) (elements[i] | elements[j]), visited, points);
 
-        if ((p.generators[p.level] & elements[i]) != 0) {
-          // take just this generator
-          Point next = p.getNext(p.level - 1, ZERO, ZERO, elements[i], ZERO);
-          if (next != null && visited.add(next.toString())) {
-            points.add(next);
-          }
-          next = p.getNext(p.level + 1, ZERO, ZERO, elements[i], ZERO);
-          if (next != null && visited.add(next.toString())) {
-            points.add(next);
-          }
+          // take this chip and another gen
+          next = addNext(p, next, elements[i], elements[j], visited, points);
 
-          // take this generator and another generator
-          for (int j = i + 1; j < elements.length; j++) {
-            if ((p.generators[p.level] & elements[j]) != 0) {
-              next = p.getNext(p.level - 1, ZERO, ZERO, elements[i], elements[j]);
-              if (next != null && visited.add(next.toString())) {
-                points.add(next);
-              }
-              next = p.getNext(p.level + 1, ZERO, ZERO, elements[i], elements[j]);
-              if (next != null && visited.add(next.toString())) {
-                points.add(next);
-              }
-            }
-          }
+          // take this gen and another chip
+          next = addNext(p, next, elements[j], elements[i], visited, points);
         }
       }
     }
 
     return -1;
+  }
+
+  private static Point addNext(Point current, Point next, byte chips, byte rtgs, Set<Integer> visited,
+      Queue<Point> points) {
+    if (current.getNext(next, current.level - FLOOR, chips, rtgs) && visited.add(next.hashCode())) {
+      points.add(next);
+      next = new Point();
+    }
+    if (current.getNext(next, current.level + FLOOR, chips, rtgs) && visited.add(next.hashCode())) {
+      points.add(next);
+      next = new Point();
+    }
+    return next;
   }
 
   private static String printPoint(byte[] elements, String[] elementStrings, Point p) {
@@ -199,13 +174,13 @@ public class Day11 {
 
       for (int i1 = 0; i1 < elements.length; i1++) {
         byte e = elements[i1];
-        if ((p.generators[i] & e) == e) {
+        if ((p.generators >> FLOOR * i & e) == e) {
           b.append(elementStrings[i1]).append("G ");
         }
         else {
           b.append(".   ");
         }
-        if ((p.microchips[i] & e) == e) {
+        if ((p.microchips >> FLOOR * i & e) == e) {
           b.append(elementStrings[i1]).append("M ");
         }
         else {
@@ -218,8 +193,42 @@ public class Day11 {
     return b.toString();
   }
 
+  private static void printSteps(byte[] elements, String[] elementStrings, List<Long> steps) {
+    StringBuilder b = new StringBuilder();
+    for (long step : steps) {
+      b.setLength(0);
+      int generators = (int) (step >> 32);
+      int microchips = (int) step;
+      for (int i = FOURTH_FLOOR; i >= 0; i -= FLOOR) {
+        b.append('F').append(i / FLOOR + 1).append(' ');
+        // b.append(p.level == i ? 'E' : '.');
+        b.append(". ");
+
+        for (int i1 = 0; i1 < elements.length; i1++) {
+          byte e = elements[i1];
+          if ((generators >> i & e) == e) {
+            b.append(elementStrings[i1]).append("G ");
+          }
+          else {
+            b.append(".   ");
+          }
+          if ((microchips >> i & e) == e) {
+            b.append(elementStrings[i1]).append("M ");
+          }
+          else {
+            b.append(".   ");
+          }
+        }
+
+        b.append('\n');
+      }
+      System.out.println(b.toString());
+    }
+  }
+
   public static void main(String[] args) {
-//    System.out.println(part1(new byte[]{0b1, 0b10}, new String[]{"H ", "L "}, new byte[] { 0, 0b0001, 0b0010, 0 }, new byte[] { 0b0011, 0, 0, 0 }));
+    System.out
+        .println(part1(new byte[] { 0b1, 0b10 }, new String[] { "H ", "L " }, 0b0_10_00000001_00000000, 0b0_0_0_11));
 
     /**
      * The first floor contains a PmG and a PmM <br/>
@@ -244,8 +253,7 @@ public class Day11 {
 
     byte[] elements = { Pm, Co, Cm, Ru, Pu };
     String[] elementStrings = { "Pm", "Co", "Cm", "Ru", "Pu" };
-    System.out.println(part1(elements, elementStrings, new byte[] { Pm, Co | Cm | Ru | Pu, 0, 0 },
-        new byte[] { Pm, 0, Co | Cm | Ru | Pu, 0 }));
+    System.out.println(part1(elements, elementStrings, 0b0_0_11110_00000001, 0b0_11110_00000000_00000001));
 
     // Elerium
     final byte El = 0x20;
@@ -254,7 +262,9 @@ public class Day11 {
     final byte Di = 0x40;
     elements = new byte[] { Pm, Co, Cm, Ru, Pu, El, Di };
     elementStrings = new String[] { "Pm", "Co", "Cm", "Ru", "Pu", "El", "Di" };
-    System.out.println(part1(elements, elementStrings, new byte[] { Pm | El | Di, Co | Cm | Ru | Pu, 0, 0 },
-        new byte[] { Pm | El | Di, 0, Co | Cm | Ru | Pu, 0 }));
+    long start = System.currentTimeMillis();
+    System.out.println(part1(elements, elementStrings, 0b0_0_11110_01100001,
+        0b0_11110_00000000_01100001));
+    System.out.println(System.currentTimeMillis() - start);
   }
 }
